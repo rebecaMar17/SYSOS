@@ -2,12 +2,23 @@
 [ORG 0x7C00]
 
 start:
+    ; ========================================================
+    ; EL ARREGLO: Inicializar la memoria (Data Segment)
+    ; ========================================================
+    xor ax, ax      ; Truco hacker para poner AX a 0 rápidamente
+    mov ds, ax      ; DS (Data Segment) = 0. ¡Ahora sabrá leer el texto!
+    mov es, ax      ; ES (Extra Segment) = 0
+    mov ss, ax      ; SS (Stack Segment) = 0
+    mov sp, 0x7C00  ; Inicializamos la Pila (Stack)
+    cld             ; Le decimos que lea el texto de izquierda a derecha
+    ; ========================================================
+
     ; 1. Activar modo gráfico VGA (320x200 píxeles)
     mov ah, 0x00
     mov al, 0x13
     int 0x10
 
-    ; 2. Pintar el fondo azul (como ya hiciste)
+    ; 2. Pintar el fondo azul
     mov ax, 0xA000
     mov es, ax
     mov di, 0
@@ -15,24 +26,44 @@ start:
     mov al, 1       ; Color 1 = Azul
     rep stosb
 
-    ; 3. DIBUJAR NUESTRA PRIMERA VENTANA BLANCA
-    mov di, 16110   ; Coordenada X,Y calculada para el centro de la pantalla
-    mov al, 15      ; Color 15 = Blanco puro
-
-    mov bx, 50      ; Alto de la ventana (50 líneas de píxeles)
+    ; 3. Dibujar la ventana blanca en el centro
+    mov di, 16110   
+    mov bx, 50      
 dibujar_fila:
-    mov cx, 100     ; Ancho de la ventana (100 píxeles por línea)
-    rep stosb       ; La CPU pinta 100 píxeles blancos seguidos a la velocidad de la luz
-    
-    add di, 220     ; Truco matemático: saltar al inicio de la línea siguiente
-    dec bx          ; Restamos 1 a las líneas que nos faltan por pintar
-    jnz dibujar_fila; Si aún quedan líneas, vuelve arriba y pinta la siguiente
+    mov cx, 100     
+    mov al, 15      ; Color 15 = Blanco
+    rep stosb       
+    add di, 220     
+    dec bx          
+    jnz dibujar_fila
 
-    ; 4. Bucle infinito para no apagarse
+    ; 4. Mover el "Cursor invisible" dentro de la ventana blanca
+    mov ah, 0x02    
+    mov bh, 0x00    
+    mov dh, 11      ; Fila (Y) - Ajustado un poco más abajo
+    mov dl, 14      ; Columna (X) - Ajustado para centrar mejor
+    int 0x10
+
+    ; 5. Imprimir nuestro mensaje letra a letra
+    mov si, mensaje 
+imprimir_letra:
+    lodsb           
+    cmp al, 0       
+    je hang         
+    
+    mov ah, 0x0E    
+    mov bl, 4       ; Color 0 = Negro
+    int 0x10        
+    jmp imprimir_letra 
+
+    ; 6. Bucle infinito
 hang:
     hlt
     jmp hang
 
-; Rellenar con ceros y firma mágica
+; Nuestros datos
+mensaje db 'Hola BecaOS!', 0
+
+; Rellenar con ceros y firma
 times 510-($-$$) db 0
 dw 0xAA55
